@@ -1,0 +1,12 @@
+{
+  "proxies": [
+    {
+      "enabled": false,
+      "host": "",
+      "port": "",
+      "username": "",
+      "password": "",
+      "change_ip_url": ""
+    }
+  ]
+}

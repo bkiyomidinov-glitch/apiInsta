@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>InstaPI · настройки</title>
+    <link rel="stylesheet" href="/static/css/aurora.css?v=3">
+    <link rel="stylesheet" href="/static/css/controls.css?v=2">
+</head>
+<body class="aurora">
+    <main class="au-main">
+        <div class="au-page-head">
+            <div class="au-eyebrow">settings</div>
+            <h1 class="au-page-title"><span class="grad">настройки</span></h1>
+            <p class="au-page-sub">Прокси с change IP URL и пресеты описаний для рандома.</p>
+        </div>
+
+        <div class="au-grid-2" style="align-items: start;">
+            <div class="au-card">
+                <div class="au-card-title">🌐 Прокси</div>
+                <p class="au-card-sub">Сколько угодно — каждый активный = отдельный параллельный поток. <code class="au-mono">change_ip_url</code> нужен для ротации.</p>
+
+                <a href="https://keyproxy.net/auth/referral/76102669" target="_blank" rel="noopener"
+                   style="display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 12px 14px; text-decoration: none; color: inherit; background: linear-gradient(135deg, rgba(78,213,255,0.10), rgba(177,78,255,0.08)); border: 1px solid rgba(78,213,255,0.25); border-radius: 12px;">
+                    <span style="font-size: 20px;">🔑</span>
+                    <span style="flex: 1;">
+                        <span style="display: block; font-weight: 600; font-size: 13px;">Нужны прокси? <span style="background: var(--au-grad-cool); -webkit-background-clip: text; background-clip: text; color: transparent;">KeyProxy</span> — скидка 10%</span>
+                        <span class="au-muted" style="display: block; font-size: 11px; margin-top: 2px;">Мобильные прокси с ротацией IP — по этой ссылке −10% на покупку</span>
+                    </span>
+                    <span style="font-size: 12px; opacity: 0.6;">→</span>
+                </a>
+
+                <div class="au-row" style="margin-top: 16px;">
+                    <span class="au-muted" style="font-size: 12px;">активных: <b id="proxy-active-count">0</b> · всего: <b id="proxy-total-count">0</b></span>
+                </div>
+                <div id="proxy-list" style="margin-top: 10px; display: flex; flex-direction: column; gap: 10px;"></div>
+
+                <button class="au-btn au-btn-glass" id="btn-add-proxy" style="width: 100%; margin-top: 12px;">+ добавить прокси</button>
+                <button class="au-btn au-btn-primary" id="btn-save-proxies" style="width: 100%; margin-top: 10px;">💾 сохранить прокси</button>
+            </div>
+
+            <div class="au-card">
+                <div class="au-card-title">📝 Пресеты описаний</div>
+                <p class="au-card-sub">Используются при <code class="au-mono">__random__</code> в заливе</p>
+
+                <div id="presets-list" class="au-scrollable" style="margin-top: 16px; max-height: 360px;">
+                    <div class="au-muted" style="padding: 16px; text-align: center;">загрузка...</div>
+                </div>
+
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--au-border);">
+                    <div class="au-field" style="margin-bottom: 10px;">
+                        <label>название</label>
+                        <input class="au-input" id="p-name" placeholder="ru-short">
+                    </div>
+                    <div class="au-field" style="margin-bottom: 12px;">
+                        <label>текст</label>
+                        <textarea class="au-textarea" id="p-desc" rows="4"></textarea>
+                    </div>
+                    <button class="au-btn au-btn-primary" id="btn-add-preset" style="width: 100%;">+ добавить пресет</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="au-ribbon">
+        <span class="grad">instapi</span>
+        <span class="au-faint">·</span>
+        <span>settings</span>
+    </div>
+
+    <script type="module">
+        import { injectNavbar, showToast, confirmAction } from '/static/js/navbar.js';
+        import { getAutoregConfig, saveAutoregConfig, getPresets, addPreset, deletePreset } from '/static/js/api.js';
+        import '/static/js/ws.js';
+
+        injectNavbar('settings');
+
+        const proxyList = document.getElementById('proxy-list');
+
+        function proxyPanel(p = {}) {
+            const el = document.createElement('div');
+            el.className = 'au-panel proxy-item';
+            el.innerHTML = `
+                <div class="au-row" style="margin-bottom: 12px;">
+                    <div class="proxy-title" style="font-weight: 600;">Прокси</div>
+                    <span class="spacer"></span>
+                    <label class="au-row" style="gap: 6px; font-size: 12px; cursor: pointer;">
+                        <input type="checkbox" class="au-check px-enabled">
+                        активен
+                    </label>
+                    <button class="au-btn-icon danger px-remove" title="удалить прокси" style="margin-left: 10px;">🗑</button>
+                </div>
+                <div class="au-g-2-1" style="margin-bottom: 10px;">
+                    <div class="au-field"><label>host</label><input class="au-input px-host" placeholder="proxy.example.com"></div>
+                    <div class="au-field"><label>port</label><input class="au-input px-port" placeholder="8080"></div>
+                </div>
+                <div class="au-g-2col" style="margin-bottom: 10px;">
+                    <div class="au-field"><label>username</label><input class="au-input px-user"></div>
+                    <div class="au-field"><label>password</label><input class="au-input px-pass" type="password"></div>
+                </div>
+                <div class="au-field"><label>change IP url</label><input class="au-input px-url" placeholder="https://..."></div>`;
+            el.querySelector('.px-enabled').checked = !!p.enabled;
+            el.querySelector('.px-host').value = p.host || '';
+            el.querySelector('.px-port').value = p.port || '';
+            el.querySelector('.px-user').value = p.username || '';
+            el.querySelector('.px-pass').value = p.password || '';
+            el.querySelector('.px-url').value = p.change_ip_url || '';
+            el.querySelector('.px-remove').addEventListener('click', () => { el.remove(); renumber(); });
+            el.querySelector('.px-enabled').addEventListener('change', renumber);
+            return el;
+        }
+
+        function renumber() {
+            const items = [...proxyList.querySelectorAll('.proxy-item')];
+            let active = 0;
+            items.forEach((el, i) => {
+                el.querySelector('.proxy-title').textContent = `Прокси ${i + 1}`;
+                if (el.querySelector('.px-enabled').checked) active++;
+            });
+            document.getElementById('proxy-total-count').textContent = items.length;
+            document.getElementById('proxy-active-count').textContent = active;
+        }
+
+        function readConfigProxies(config) {
+            if (Array.isArray(config.proxies)) return config.proxies;
+            // легаси: одиночные ключи proxy / proxy2
+            const out = [];
+            for (const key of ['proxy', 'proxy2']) {
+                if (config[key] && typeof config[key] === 'object') out.push(config[key]);
+            }
+            return out;
+        }
+
+        async function loadProxies() {
+            const { config } = await getAutoregConfig();
+            const proxies = readConfigProxies(config);
+            proxyList.innerHTML = '';
+            if (!proxies.length) proxyList.appendChild(proxyPanel());
+            else proxies.forEach(p => proxyList.appendChild(proxyPanel(p)));
+            renumber();
+        }
+        loadProxies().catch(e => showToast(e.message, 'error'));
+
+        document.getElementById('btn-add-proxy').addEventListener('click', () => {
+            proxyList.appendChild(proxyPanel());
+            renumber();
+        });
+
+        document.getElementById('btn-save-proxies').addEventListener('click', async () => {
+            const { config } = await getAutoregConfig();
+            const proxies = [...proxyList.querySelectorAll('.proxy-item')].map(el => ({
+                enabled: el.querySelector('.px-enabled').checked,
+                host: el.querySelector('.px-host').value.trim(),
+                port: el.querySelector('.px-port').value.trim(),
+                username: el.querySelector('.px-user').value.trim(),
+                password: el.querySelector('.px-pass').value,
+                change_ip_url: el.querySelector('.px-url').value.trim(),
+            })).filter(p => p.host || p.port || p.username || p.change_ip_url);
+            config.proxies = proxies;
+            delete config.proxy;    // убираем легаси-ключи
+            delete config.proxy2;
+            await saveAutoregConfig(config);
+            showToast(`сохранено: ${proxies.length} прокси`, 'success');
+            loadProxies();
+        });
+
+        async function loadPresets() {
+            try {
+                const { presets } = await getPresets();
+                const el = document.getElementById('presets-list');
+                if (!presets.length) {
+                    el.innerHTML = `
+                        <div class="au-empty" style="min-height: 140px;">
+                            <div class="au-empty-icon">📝</div>
+                            <div class="au-empty-title">Пресетов пока нет</div>
+                            <div class="au-empty-sub">Добавь первый ниже — он будет использоваться в заливе при опции «рандом из пресетов».</div>
+                        </div>`;
+                    return;
+                }
+                el.innerHTML = presets.map(p => `
+                    <div style="padding: 12px; margin-bottom: 6px; background: var(--au-glass-soft); border: 1px solid var(--au-border); border-radius: 10px;">
+                        <div class="au-row">
+                            <strong>${p.name}</strong>
+                            <span class="spacer"></span>
+                            <button class="au-btn-icon danger" data-del="${p.name}" title="удалить">🗑</button>
+                        </div>
+                        <div class="au-muted" style="font-size: 11px; margin-top: 6px; max-height: 44px; overflow: hidden; line-height: 1.45;">${(p.description || '').slice(0, 140)}${(p.description || '').length > 140 ? '...' : ''}</div>
+                    </div>
+                `).join('');
+                el.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
+                    const n = b.dataset.del;
+                    if (!await confirmAction(`Удалить «${n}»?`)) return;
+                    await deletePreset(n);
+                    showToast('удалено', 'success');
+                    loadPresets();
+                }));
+            } catch (e) {}
+        }
+        loadPresets();
+
+        document.getElementById('btn-add-preset').addEventListener('click', async () => {
+            const name = document.getElementById('p-name').value.trim();
+            const desc = document.getElementById('p-desc').value.trim();
+            if (!name || !desc) return showToast('заполни поля', 'warning');
+            await addPreset(name, desc);
+            document.getElementById('p-name').value = '';
+            document.getElementById('p-desc').value = '';
+            showToast('добавлен', 'success');
+            loadPresets();
+        });
+    </script>
+</body>
+</html>

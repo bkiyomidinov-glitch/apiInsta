@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>InstaPI · аккаунты</title>
+    <link rel="stylesheet" href="/static/css/aurora.css?v=3">
+    <link rel="stylesheet" href="/static/css/controls.css?v=2">
+</head>
+<body class="aurora">
+    <main class="au-main">
+        <div class="au-page-head">
+            <div class="au-eyebrow">collection · accounts</div>
+            <h1 class="au-page-title"><span class="grad">аккаунты</span></h1>
+            <p class="au-page-sub">Вставь список <code class="au-mono">user:pass:otp</code> и жми «логин через API» — зайду в каждый, решу 2FA и сохраню куки.</p>
+        </div>
+
+        <div class="au-grid-2" style="align-items: start;">
+            <div class="au-card">
+                <div class="au-card-title">Добавить аккаунты</div>
+                <p class="au-card-sub">Форматы: <code class="au-mono">user:pass:otp</code> · <code class="au-mono">user pass otp</code></p>
+
+                <textarea class="au-textarea au-textarea-lg" id="accounts-input" placeholder="oliviawilliamss5446:71ga6lp9:KCAH MMG5 ETQK OGN7 3UTY ENM4 AMFS J7BE
+sophiawhiten5448:zd9h40yh:JPBD I6MS ZENY XB54 TSUT RN2X HHTD X54H" style="margin-top: 8px;"></textarea>
+
+                <label class="au-switch" style="margin-top: 14px;">
+                    <input type="checkbox" id="use-proxies">
+                    <span>🌐 через прокси<span class="hint" id="proxy-hint"></span></span>
+                </label>
+
+                <div class="au-row" style="margin-top: 16px;">
+                    <button class="au-btn au-btn-glass au-btn-sm" id="btn-save">💾 сохранить (без логина)</button>
+                    <span class="spacer"></span>
+                    <button class="au-btn au-btn-primary" id="btn-login">🔐 логин через API</button>
+                </div>
+
+                <div id="log" class="au-log au-scrollable is-empty"
+                     data-empty="📋  здесь будет лог логинов&#10;выбери формат, вставь список и жми «логин»"
+                     style="margin-top: 20px; max-height: 280px; min-height: 140px;"></div>
+            </div>
+
+            <div class="au-card">
+                <div class="au-row">
+                    <div class="au-card-title" style="margin: 0;">Сохранённые</div>
+                    <span class="au-muted au-mono" id="accs-count" style="font-size: 12px;">—</span>
+                    <span class="spacer"></span>
+                    <button class="au-btn-icon" id="btn-refresh-accs" title="обновить">🔄</button>
+                </div>
+                <p class="au-card-sub">Аккаунты в базе · @username, 2FA-метка, дата добавления</p>
+                <div id="accs-list" class="au-scrollable" style="margin-top: 16px; max-height: 480px;"></div>
+            </div>
+        </div>
+    </main>
+
+    <div class="au-ribbon">
+        <span class="grad">instapi</span>
+        <span class="au-faint">·</span>
+        <span>accounts</span>
+    </div>
+
+    <script type="module">
+        import { injectNavbar, showToast, confirmAction } from '/static/js/navbar.js';
+        import { getAccounts, importAccounts, deleteAccount, getProxies } from '/static/js/api.js';
+        import { send, subscribe } from '/static/js/ws.js';
+
+        injectNavbar('accounts');
+
+        const logEl = document.getElementById('log');
+        const addLog = (msg, level = 'info') => {
+            logEl.classList.remove('is-empty');
+            const line = document.createElement('div');
+            line.className = 'au-log-line ' + (level === 'error' ? 'err' : level === 'warning' ? 'warn' : level === 'success' ? 'ok' : '');
+            const time = new Date().toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            line.innerHTML = `<span class="au-log-time">${time}</span><span>${msg}</span>`;
+            logEl.appendChild(line);
+            logEl.scrollTop = logEl.scrollHeight;
+        };
+
+        async function refreshList() {
+            try {
+                const { accounts } = await getAccounts();
+                document.getElementById('accs-count').textContent = `(${accounts.length})`;
+                const list = document.getElementById('accs-list');
+                if (!accounts.length) {
+                    list.innerHTML = `
+                        <div class="au-empty">
+                            <div class="au-empty-icon">👥</div>
+                            <div class="au-empty-title">База пуста</div>
+                            <div class="au-empty-sub">Вставь список <code class="au-mono">user:pass:otp</code> слева и жми «сохранить» или сразу «логин через API».</div>
+                        </div>`;
+                    return;
+                }
+                list.innerHTML = accounts.map(a => `
+                    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:6px;background:var(--au-glass-soft);border:1px solid var(--au-border);border-radius:10px;">
+                        <div style="font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;">@${a.username}</div>
+                        ${a.otp_secret ? '<span class="au-pill au-pill-active">2FA</span>' : '<span class="au-pill au-pill-default">no 2FA</span>'}
+                        <span class="au-faint au-mono" style="font-size: 10.5px;">${a.added_at || ''}</span>
+                        <button class="au-btn-icon danger" data-del="${a.username}" title="удалить">🗑</button>
+                    </div>
+                `).join('');
+                list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
+                    const u = b.dataset.del;
+                    if (!await confirmAction(`Удалить @${u}?`)) return;
+                    await deleteAccount(u);
+                    showToast(`@${u} удалён`, 'success');
+                    refreshList();
+                }));
+            } catch (e) { console.error(e); }
+        }
+        refreshList();
+        document.getElementById('btn-refresh-accs').addEventListener('click', refreshList);
+
+        (async () => {
+            try {
+                const { count } = await getProxies();
+                document.getElementById('proxy-hint').textContent =
+                    count ? ` (${count} шт)` : ' (не настроено)';
+            } catch {}
+        })();
+
+        document.getElementById('btn-save').addEventListener('click', async () => {
+            const text = document.getElementById('accounts-input').value.trim();
+            if (!text) return showToast('пусто', 'warning');
+            try {
+                const r = await importAccounts(text);
+                showToast(`добавлено ${r.added}, пропущено ${r.skipped}`, 'success');
+                refreshList();
+            } catch (e) { showToast(e.message, 'error'); }
+        });
+
+        document.getElementById('btn-login').addEventListener('click', () => {
+            const text = document.getElementById('accounts-input').value.trim();
+            if (!text) return showToast('пусто', 'warning');
+
+            const parsed = text.split('\n').map(l => {
+                l = l.trim(); if (!l) return null;
+                let parts;
+                if (l.includes(':')) parts = l.split(':').map(s => s.trim());
+                else if (l.includes('\t')) parts = l.split('\t').map(s => s.trim());
+                else parts = l.split(/\s+/);
+                const [u, p, ...rest] = parts;
+                return u && p ? { username: u, password: p, otp_secret: (rest.join('') || '').replace(/\s/g,'') } : null;
+            }).filter(Boolean);
+
+            if (!parsed.length) return showToast('не удалось разобрать', 'warning');
+
+            logEl.innerHTML = '';
+            logEl.classList.add('is-empty');
+            send({ type: 'add_accounts_start', channel: 'add_accounts', accounts: parsed,
+                   use_proxies: document.getElementById('use-proxies').checked });
+        });
+
+        subscribe('add_accounts', data => {
+            if (data.type === 'log') addLog(data.message, data.level);
+            else if (data.type === 'task_started') addLog('▶ Task started');
+            else if (data.type === 'task_completed') {
+                addLog('✅ Task completed', 'success');
+                refreshList();
+            }
+            else if (data.type === 'task_error') addLog(`❌ ${data.error}`, 'error');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>InstaPI · сессии</title>
+    <link rel="stylesheet" href="/static/css/aurora.css?v=3">
+    <link rel="stylesheet" href="/static/css/controls.css?v=2">
+    <style>
+        .sess-row {
+            grid-template-columns: 1.4fr 2fr 1.5fr 1fr 0.6fr 60px;
+        }
+        @media (max-width: 1024px) {
+            .sess-row { grid-template-columns: 1.4fr 1fr 1fr 60px; }
+            .sess-row .col-ua, .sess-row .col-proxy { display: none; }
+        }
+    </style>
+</head>
+<body class="aurora">
+    <main class="au-main">
+        <div class="au-page-head">
+            <div class="au-eyebrow">sessions · web cookies</div>
+            <h1 class="au-page-title"><span class="grad">сессии</span></h1>
+            <p class="au-page-sub">Сохранённые куки. Каждая сессия — фиксированный UA, прокси и Instagram sessionid.</p>
+        </div>
+
+        <div class="au-card">
+            <div class="au-row" style="margin-bottom: 14px;">
+                <div class="au-card-title" style="margin: 0;">Все сессии</div>
+                <span class="au-muted au-mono" id="count" style="font-size: 12px;">—</span>
+                <span class="spacer"></span>
+                <input type="text" id="search" placeholder="🔍 поиск @username" class="au-input" style="max-width: 280px;">
+                <button class="au-btn au-btn-glass au-btn-sm" id="btn-refresh">🔄</button>
+            </div>
+
+            <div class="au-list-row au-list-header sess-row">
+                <div>username</div>
+                <div class="col-ua">UA · macOS</div>
+                <div class="col-proxy">прокси</div>
+                <div>saved</div>
+                <div>age</div>
+                <div style="text-align:right;">action</div>
+            </div>
+
+            <div id="list">
+                <div class="au-muted" style="padding: 40px; text-align: center;">загрузка...</div>
+            </div>
+        </div>
+    </main>
+
+    <div class="au-ribbon">
+        <span class="grad">instapi</span>
+        <span class="au-faint">·</span>
+        <span>sessions</span>
+    </div>
+
+    <script type="module">
+        import { injectNavbar, showToast, confirmAction } from '/static/js/navbar.js';
+        import { getSessions, deleteSession } from '/static/js/api.js';
+        import '/static/js/ws.js';
+
+        injectNavbar('sessions');
+
+        let all = [];
+
+        function human(ts) {
+            if (!ts) return '—';
+            const diff = Date.now() / 1000 - ts;
+            if (diff < 60) return `${Math.floor(diff)}s`;
+            if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+            return `${Math.floor(diff / 86400)}d`;
+        }
+        function ageClass(ts) {
+            if (!ts) return 'au-pill-default';
+            const diff = Date.now() / 1000 - ts;
+            if (diff < 86400) return 'au-pill-active';
+            if (diff < 86400 * 14) return 'au-pill-warning';
+            return 'au-pill-suspended';
+        }
+
+        function render(items) {
+            const list = document.getElementById('list');
+            if (!items.length) {
+                list.innerHTML = `
+                    <div class="au-empty">
+                        <div class="au-empty-icon">🔑</div>
+                        <div class="au-empty-title">Нет сохранённых сессий</div>
+                        <div class="au-empty-sub">Сессии создаются после успешного логина на странице «аккаунты».</div>
+                        <a class="au-empty-cta" href="/accounts">→ перейти к логину</a>
+                    </div>`;
+                return;
+            }
+            list.innerHTML = items.map(s => `
+                <div class="au-list-row sess-row">
+                    <div style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">@${s.username}</div>
+                    <div class="col-ua au-mono au-muted" style="font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${(s.user_agent || '').replace(/Mozilla.*Chrome\//, 'Chrome ') || '—'}</div>
+                    <div class="col-proxy au-mono au-faint" style="font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s.proxy || '—'}</div>
+                    <div class="au-muted" style="font-size: 11px;">${s.saved_at || ''}</div>
+                    <div><span class="au-pill ${ageClass(s.saved_ts)}">${human(s.saved_ts)}</span></div>
+                    <div style="text-align: right;">
+                        <button class="au-btn-icon danger" data-del="${s.username}" title="удалить">🗑</button>
+                    </div>
+                </div>
+            `).join('');
+            list.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
+                const u = b.dataset.del;
+                if (!await confirmAction(`Удалить сессию @${u}?`)) return;
+                await deleteSession(u);
+                showToast(`@${u} удалён`, 'success');
+                refresh();
+            }));
+        }
+
+        async function refresh() {
+            try {
+                const { sessions } = await getSessions();
+                all = sessions;
+                document.getElementById('count').textContent = `(${sessions.length})`;
+                applyFilter();
+            } catch (e) { showToast(e.message, 'error'); }
+        }
+
+        function applyFilter() {
+            const q = document.getElementById('search').value.trim().toLowerCase();
+            render(q ? all.filter(s => s.username.toLowerCase().includes(q)) : all);
+        }
+
+        document.getElementById('search').addEventListener('input', applyFilter);
+        document.getElementById('btn-refresh').addEventListener('click', refresh);
+        refresh();
+    </script>
+</body>
+</html>

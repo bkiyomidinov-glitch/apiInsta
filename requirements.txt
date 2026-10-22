@@ -1,0 +1,27 @@
+# --- ядро (веб-панель + API-клиент) ---
+fastapi>=0.110
+uvicorn[standard]>=0.27
+httpx>=0.27
+# curl_cffi >=0.15 обязателен: даёт TLS-отпечаток chrome146 (impersonate).
+# На старых версиях этого таргета нет → откат на httpx (заметно хуже для анти-детекта).
+curl_cffi>=0.15.0
+
+# --- логин (шифрование пароля Curve25519 + AES-GCM) ---
+pynacl>=1.5
+cryptography>=42
+
+# --- link-стикер сторис (визуал вшивается в медиа) ---
+# Без них ссылка в сторис будет кликабельной, но НЕВИДИМОЙ (сработает фолбэк).
+# cairosvg требует системный libcairo (macOS: brew install cairo; Debian: libcairo2).
+Pillow>=10.0
+cairosvg>=2.7
+
+# --- опционально: логин через браузер (web_login_playwright) ---
+# Основной путь логина — чистый HTTP (api_login), playwright для него НЕ нужен.
+# Ставить только если используете браузерный логин: pip install playwright && playwright install chromium
+# playwright>=1.40
+
+# --- СИСТЕМНЫЕ зависимости (не ставятся через pip) ---
+# ffmpeg + ffprobe — обязательны: размеры/длительность видео, обложка рилса,
+# холст 1080x1920 для фото-сторис, наложение стикера на видео.
+# macOS: brew install ffmpeg | Debian/Ubuntu: apt install ffmpeg

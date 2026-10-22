@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>InstaPI · залив</title>
+    <link rel="stylesheet" href="/static/css/aurora.css?v=3">
+    <link rel="stylesheet" href="/static/css/controls.css?v=2">
+</head>
+<body class="aurora">
+    <main class="au-main">
+        <div class="au-page-head">
+            <div class="au-eyebrow">zaliv · web api</div>
+            <h1 class="au-page-title"><span class="grad">залив</span> reels</h1>
+            <p class="au-page-sub">Выбери акки, папку с видео и жми старт. Прокси и IP ротируются сами.</p>
+        </div>
+
+        <div class="au-grid-2" style="align-items: start;">
+            <div class="au-card">
+                <div class="au-row">
+                    <div class="au-card-title" style="margin: 0;">Аккаунты</div>
+                    <span class="au-counter" id="sess-count">0</span>
+                    <span class="au-counter primary" id="sess-selected" style="display:none;" title="выбрано">0</span>
+                    <span class="spacer"></span>
+                    <button class="au-btn au-btn-glass au-btn-xs" id="btn-select-all">все</button>
+                    <button class="au-btn au-btn-ghost au-btn-xs" id="btn-select-none">снять</button>
+                </div>
+                <p class="au-card-sub">Только аккаунты с сохранёнными сессиями</p>
+                <div id="accounts-chips" class="au-scrollable"
+                     style="margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px; max-height: 240px; padding: 4px;"></div>
+
+                <div class="au-g-2col" style="margin-top: 24px;">
+                    <div class="au-field">
+                        <label>папка с видео</label>
+                        <select class="au-select" id="video-folder"><option value="">—</option></select>
+                    </div>
+                    <div class="au-field">
+                        <label>пресет описания</label>
+                        <select class="au-select" id="preset-select">
+                            <option value="">— пусто —</option>
+                            <option value="__random__">🎲 рандом из пресетов</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="au-field" style="margin-top: 12px;">
+                    <label>или своё описание</label>
+                    <textarea class="au-textarea" id="custom-desc" rows="3" placeholder="текст поста..."></textarea>
+                </div>
+
+                <div class="au-section-label">⏱ тайминги</div>
+                <div class="au-timings">
+                    <div class="au-timing">
+                        <div class="au-timing-label">видео/акк</div>
+                        <div class="au-timing-input">
+                            <input type="number" id="vpa" value="1" min="1" max="50">
+                            <span class="au-timing-unit">шт</span>
+                        </div>
+                    </div>
+                    <div class="au-timing">
+                        <div class="au-timing-label">между видео</div>
+                        <div class="au-timing-input">
+                            <input type="number" id="delay-videos" value="2" min="0" max="600">
+                            <span class="au-timing-unit">сек</span>
+                        </div>
+                    </div>
+                    <div class="au-timing">
+                        <div class="au-timing-label">между акками</div>
+                        <div class="au-timing-input">
+                            <input type="number" id="delay-after" value="30" min="0" max="600">
+                            <span class="au-timing-unit">сек</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="au-section-label">🎬 видео</div>
+                <div class="au-g-2col">
+                    <label class="au-opt tone-mint">
+                        <div class="au-opt-icon">🎲</div>
+                        <div class="au-opt-body">
+                            <div class="au-opt-title">Уникальные видео</div>
+                            <div class="au-opt-hint">каждый акк получает своё</div>
+                        </div>
+                        <input type="checkbox" id="unique-videos">
+                    </label>
+                    <label class="au-opt tone-cyan">
+                        <div class="au-opt-icon">📦</div>
+                        <div class="au-opt-body">
+                            <div class="au-opt-title">В <code class="au-mono">done/</code> после</div>
+                            <div class="au-opt-hint">перенос после публикации</div>
+                        </div>
+                        <input type="checkbox" id="move-done" checked>
+                    </label>
+                    <label class="au-opt tone-amber">
+                        <div class="au-opt-icon">✨</div>
+                        <div class="au-opt-body">
+                            <div class="au-opt-title">Уник (light)</div>
+                            <div class="au-opt-hint">ремукс, пересжатие</div>
+                        </div>
+                        <input type="checkbox" id="uniqualize">
+                    </label>
+                    <label class="au-opt tone-pink">
+                        <div class="au-opt-icon">🔥</div>
+                        <div class="au-opt-body">
+                            <div class="au-opt-title">Уник (new)</div>
+                            <div class="au-opt-hint">цвет + кадр + метаданные</div>
+                        </div>
+                        <input type="checkbox" id="new-uniqalize">
+                    </label>
+                </div>
+
+                <div class="au-section-label">🌐 сеть</div>
+                <label class="au-opt tone-purple">
+                    <div class="au-opt-icon">🔁</div>
+                    <div class="au-opt-body">
+                        <div class="au-opt-title">Через прокси <span id="proxy-hint" class="au-muted" style="font-weight:400;font-size:11px;"></span></div>
+                        <div class="au-opt-hint">смена IP перед каждым аккаунтом · параллельный залив по потокам</div>
+                    </div>
+                    <input type="checkbox" id="use-proxies">
+                </label>
+
+                <div class="au-row" style="margin-top: 28px; gap: 12px;">
+                    <button class="au-btn au-btn-primary au-btn-start" id="btn-start" style="flex: 1; padding: 14px 22px;">🚀 старт</button>
+                    <button class="au-btn au-btn-glass" id="btn-stop" style="flex: 1; display: none; padding: 14px 22px;">■ стоп</button>
+                </div>
+            </div>
+
+            <div class="au-card" style="min-height: 640px; display: flex; flex-direction: column;">
+                <div class="au-row">
+                    <div class="au-card-title" style="margin: 0;">Лог</div>
+                    <span class="au-counter" id="log-count" style="display:none;">0</span>
+                    <span class="spacer"></span>
+                    <button class="au-btn au-btn-ghost au-btn-xs" id="btn-clear">очистить</button>
+                </div>
+                <div id="log" class="au-log au-scrollable is-empty"
+                     data-empty="📋  здесь будет поток событий&#10;запусти залив, чтобы увидеть прогресс"
+                     style="margin-top: 14px; flex: 1; max-height: 720px;"></div>
+            </div>
+        </div>
+    </main>
+
+    <div class="au-ribbon">
+        <span class="grad">instapi</span>
+        <span class="au-faint">·</span>
+        <span>zaliv</span>
+    </div>
+
+    <script type="module">
+        import { injectNavbar, showToast } from '/static/js/navbar.js';
+        import { getSessions, getVideoFolders, getPresets, getProxies } from '/static/js/api.js';
+        import { send, subscribe } from '/static/js/ws.js';
+
+        injectNavbar('zaliv');
+
+        let selectedAccs = new Set();
+        let currentTaskId = null;
+
+        function updateSelectedCounter() {
+            const el = document.getElementById('sess-selected');
+            if (selectedAccs.size) {
+                el.style.display = 'inline-flex';
+                el.textContent = selectedAccs.size;
+            } else {
+                el.style.display = 'none';
+            }
+        }
+
+        async function loadSessions() {
+            try {
+                const { sessions } = await getSessions();
+                const live = sessions.filter(s => s.has_session);
+                document.getElementById('sess-count').textContent = live.length;
+                const el = document.getElementById('accounts-chips');
+                if (!live.length) {
+                    el.innerHTML = `
+                        <div class="au-empty" style="width: 100%;">
+                            <div class="au-empty-icon">🔒</div>
+                            <div class="au-empty-title">Нет сохранённых сессий</div>
+                            <div class="au-empty-sub">Сначала добавь аккаунты и войди в них через API — сессии будут храниться и доступны здесь.</div>
+                            <a class="au-empty-cta" href="/accounts">→ добавить аккаунты</a>
+                        </div>`;
+                    return;
+                }
+                el.innerHTML = live.map(s =>
+                    `<div class="au-toggle-chip" data-u="${s.username}">@${s.username}</div>`).join('');
+                el.querySelectorAll('.au-toggle-chip').forEach(c => c.addEventListener('click', () => {
+                    const u = c.dataset.u;
+                    if (selectedAccs.has(u)) { selectedAccs.delete(u); c.classList.remove('selected'); }
+                    else { selectedAccs.add(u); c.classList.add('selected'); }
+                    updateSelectedCounter();
+                }));
+            } catch (e) {}
+        }
+        loadSessions();
+
+        document.getElementById('btn-select-all').addEventListener('click', () => {
+            document.querySelectorAll('.au-toggle-chip').forEach(c => {
+                selectedAccs.add(c.dataset.u); c.classList.add('selected');
+            });
+            updateSelectedCounter();
+        });
+        document.getElementById('btn-select-none').addEventListener('click', () => {
+            selectedAccs.clear();
+            document.querySelectorAll('.au-toggle-chip').forEach(c => c.classList.remove('selected'));
+            updateSelectedCounter();
+        });
+
+        (async () => {
+            try {
+                const { folders } = await getVideoFolders();
+                const sel = document.getElementById('video-folder');
+                sel.innerHTML = folders.map(f =>
+                    `<option value="${f.path}">${f.name} · ${f.count}</option>`).join('');
+            } catch {}
+            try {
+                const { presets } = await getPresets();
+                const sel = document.getElementById('preset-select');
+                for (const p of presets) {
+                    const opt = document.createElement('option');
+                    opt.value = p.name; opt.textContent = p.name;
+                    sel.appendChild(opt);
+                }
+            } catch {}
+            try {
+                const { count } = await getProxies();
+                document.getElementById('proxy-hint').textContent =
+                    count ? ` (${count} шт)` : ' (не настроено)';
+            } catch {}
+        })();
+
+        const logEl = document.getElementById('log');
+        const logCount = document.getElementById('log-count');
+        let logLines = 0;
+        const addLog = (msg, level = 'info') => {
+            logEl.classList.remove('is-empty');
+            const line = document.createElement('div');
+            line.className = 'au-log-line ' + (level === 'error' ? 'err' : level === 'warning' ? 'warn' : level === 'success' ? 'ok' : '');
+            const time = new Date().toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            line.innerHTML = `<span class="au-log-time">${time}</span><span>${msg}</span>`;
+            logEl.appendChild(line);
+            logEl.scrollTop = logEl.scrollHeight;
+            logLines++;
+            logCount.textContent = logLines;
+            logCount.style.display = 'inline-flex';
+        };
+
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            logEl.innerHTML = '';
+            logEl.classList.add('is-empty');
+            logLines = 0;
+            logCount.style.display = 'none';
+        });
+
+        document.getElementById('btn-start').addEventListener('click', () => {
+            if (!selectedAccs.size) return showToast('выбери акки', 'warning');
+            const descPreset = document.getElementById('preset-select').value;
+            const customDesc = document.getElementById('custom-desc').value.trim();
+            const description = descPreset === '__random__' ? '__random__'
+                : (customDesc || descPreset || '');
+
+            const payload = {
+                type: 'zaliv_start', channel: 'zaliv',
+                accounts: [...selectedAccs],
+                description,
+                videos_per_account: parseInt(document.getElementById('vpa').value) || 1,
+                video_folder: document.getElementById('video-folder').value || null,
+                unique_videos: document.getElementById('unique-videos').checked,
+                move_to_done: document.getElementById('move-done').checked,
+                uniqualize: document.getElementById('uniqualize').checked,
+                new_uniqalize: document.getElementById('new-uniqalize').checked,
+                use_proxies: document.getElementById('use-proxies').checked,
+                delay_between_videos: parseInt(document.getElementById('delay-videos').value) || 2,
+                delay_after_all_videos: parseInt(document.getElementById('delay-after').value) || 30,
+            };
+            if (!send(payload)) return showToast('WS не подключён', 'error');
+            document.getElementById('btn-start').style.display = 'none';
+            document.getElementById('btn-stop').style.display = 'inline-flex';
+            logEl.innerHTML = '';
+        });
+
+        document.getElementById('btn-stop').addEventListener('click', () => {
+            if (currentTaskId) send({ type: 'task_stop', task_id: currentTaskId });
+            showToast('остановка...', 'warning');
+        });
+
+        subscribe('zaliv', data => {
+            if (data.type === 'log') addLog(data.message, data.level);
+            else if (data.type === 'task_started') {
+                currentTaskId = data.task_id;
+                addLog('▶ Task started');
+            }
+            else if (data.type === 'task_completed' || data.type === 'task_error') {
+                currentTaskId = null;
+                document.getElementById('btn-start').style.display = 'inline-flex';
+                document.getElementById('btn-stop').style.display = 'none';
+                if (data.type === 'task_completed') {
+                    const r = data.result || {};
+                    addLog(`✅ Done: ${r.videos_uploaded || 0} видео`, 'success');
+                } else {
+                    addLog(`❌ Error: ${data.error}`, 'error');
+                }
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>InstaPI · главная</title>
+    <link rel="stylesheet" href="/static/css/aurora.css?v=3">
+    <link rel="stylesheet" href="/static/css/controls.css?v=2">
+</head>
+<body class="aurora">
+    <main class="au-main">
+        <div class="au-page-head">
+            <div class="au-eyebrow">control center</div>
+            <h1 class="au-page-title"><span class="grad">instapi</span> studio</h1>
+        </div>
+
+        <div class="au-stats" id="stats-grid">
+            <div class="au-stat s-mint">
+                <div class="au-stat-label">аккаунтов</div>
+                <div class="au-stat-num" id="stat-accounts">—</div>
+                <div class="au-stat-meta">в базе</div>
+            </div>
+            <div class="au-stat s-cyan">
+                <div class="au-stat-label">сессий</div>
+                <div class="au-stat-num" id="stat-sessions">—</div>
+                <div class="au-stat-meta">активных куки</div>
+            </div>
+            <div class="au-stat s-purple">
+                <div class="au-stat-label">заливов</div>
+                <div class="au-stat-num" id="stat-uploads">—</div>
+                <div class="au-stat-meta">всего публикаций</div>
+            </div>
+            <div class="au-stat s-pink">
+                <div class="au-stat-label">потеряно</div>
+                <div class="au-stat-num" id="stat-lost">—</div>
+                <div class="au-stat-meta">disabled/challenge</div>
+            </div>
+        </div>
+
+        <div class="au-grid-2" style="margin-top: 24px;">
+            <div class="au-card au-card-hero">
+                <div class="au-eyebrow" style="margin-bottom: 14px;">ready to launch</div>
+                <div class="au-card-title" style="font-size: 26px;">Готов к заливу?</div>
+                <p class="au-card-sub" style="max-width: 420px; margin-top: 6px;">
+                    Выбирай акки, папку и жми старт. Прокси и IP ротируются сами.
+                </p>
+                <div class="au-row" style="margin-top: 24px;">
+                    <a class="au-btn au-btn-primary" href="/zaliv">🚀 в залив</a>
+                    <a class="au-btn au-btn-glass" href="/accounts">+ добавить акки</a>
+                </div>
+            </div>
+
+            <div class="au-card">
+                <div class="au-card-title">Последние заливы</div>
+                <p class="au-card-sub">История публикаций через API</p>
+                <div class="au-log is-empty" id="recent-log"
+                     data-empty="📋  здесь появится история&#10;после первого залива"
+                     style="margin-top: 16px; min-height: 160px;"></div>
+            </div>
+        </div>
+
+        <div class="au-section-head">
+            <div>
+                <div class="au-section-title">Быстрые действия</div>
+                <div class="au-section-sub">Основные модули InstaPI</div>
+            </div>
+        </div>
+        <div class="au-quick">
+            <a class="au-quick-card" href="/accounts">
+                <div class="au-quick-icon q-pink">👥</div>
+                <div class="au-quick-title">аккаунты</div>
+                <div class="au-quick-desc">Добавить новые через вставку user:pass:otp. Логин через API + 2FA + сохранение сессий</div>
+            </a>
+            <a class="au-quick-card" href="/zaliv">
+                <div class="au-quick-icon q-mint">🚀</div>
+                <div class="au-quick-title">залив</div>
+                <div class="au-quick-desc">Массовая публикация Reels. Параллельно по прокси, уникализация, рандом описаний</div>
+            </a>
+            <a class="au-quick-card" href="/sessions">
+                <div class="au-quick-icon q-cyan">🔑</div>
+                <div class="au-quick-title">сессии</div>
+                <div class="au-quick-desc">Управление сохранёнными web-сессиями. Просмотр UA, прокси, удаление</div>
+            </a>
+            <a class="au-quick-card" href="/settings">
+                <div class="au-quick-icon">⚙️</div>
+                <div class="au-quick-title">настройки</div>
+                <div class="au-quick-desc">Прокси (change IP), пресеты описаний, параметры залива</div>
+            </a>
+        </div>
+    </main>
+
+    <div class="au-ribbon">
+        <span class="grad">instapi</span>
+        <span style="color: var(--au-text-4);">·</span>
+        <span>pure web API</span>
+    </div>
+
+    <script type="module">
+        import { injectNavbar } from '/static/js/navbar.js';
+        import { getStats, getZalivLog } from '/static/js/api.js';
+        import '/static/js/ws.js';
+
+        injectNavbar('home');
+
+        (async () => {
+            try {
+                const s = await getStats();
+                document.getElementById('stat-accounts').textContent = s.accounts_total;
+                document.getElementById('stat-sessions').textContent = s.sessions_total;
+                document.getElementById('stat-uploads').textContent = s.uploads_total;
+                document.getElementById('stat-lost').textContent = s.lost_total;
+            } catch (e) {}
+
+            try {
+                const { log } = await getZalivLog();
+                const el = document.getElementById('recent-log');
+                if (log.length) {
+                    el.classList.remove('is-empty');
+                    const recent = log.slice(-8).reverse();
+                    el.innerHTML = recent.map(e => {
+                        const t = new Date((e.timestamp || 0) * 1000).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
+                        return `<div class="au-log-line ok"><span class="au-log-time">${t}</span>✅ @${e.account} · ${e.video || ''} · <code style="opacity:.6;">${e.media_code || ''}</code></div>`;
+                    }).join('');
+                }
+            } catch (e) {}
+        })();
+    </script>
+</body>
+</html>
